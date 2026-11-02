@@ -18,6 +18,10 @@ import { Form } from "../../../../components/form"
 import { RouteFocusModal, useRouteModal } from "../../../../components/modals"
 import { useCreateGiftCard } from "../../../../hooks/api/gift-cards"
 import { currencies } from "../../../../lib/currencies"
+import {
+  giftCardAmountFromCurrencyValues,
+  type GiftCardCurrencyInputValues,
+} from "./amount"
 import { GiftCardCreateSchema } from "./schema"
 
 export const GiftCardCreateForm = ({
@@ -44,15 +48,26 @@ export const GiftCardCreateForm = ({
   const { mutateAsync: createGiftCard, isPending } = useCreateGiftCard()
 
   const handleSubmit = form.handleSubmit(async (data) => {
-    await createGiftCard(data, {
-      onSuccess: (data) => {
-        toast.success("Gift card was successfully created")
-        handleSuccess(`../${data.gift_card.id}`)
+    await createGiftCard(
+      {
+        currency_code: data.currency_code,
+        value: data.value.amount,
+        note: data.note,
+        metadata: data.metadata,
+        expires_at: data.expires_at
+          ? data.expires_at.toISOString()
+          : data.expires_at,
       },
-      onError: (error) => {
-        toast.error(error.message)
-      },
-    })
+      {
+        onSuccess: (data) => {
+          toast.success("Gift card was successfully created")
+          handleSuccess(`../${data.gift_card.id}`)
+        },
+        onError: (error) => {
+          toast.error(error.message)
+        },
+      }
+    )
   })
 
   // Set up currency options
@@ -150,7 +165,7 @@ export const GiftCardCreateForm = ({
                         <Form.Label className="font-normal">Value</Form.Label>
                         <Form.Control>
                           <CurrencyInput
-                            value={field.value}
+                            value={field.value?.display ?? ""}
                             code={currentCurrency.code}
                             symbol={currentCurrency.symbol_native}
                             decimalScale={currentCurrency.decimal_digits}
@@ -160,8 +175,14 @@ export const GiftCardCreateForm = ({
                             allowNegativeValue={false}
                             autoComplete="off"
                             tabIndex={-1}
-                            onValueChange={(_value, _name, values) => {
-                              field.onChange(values?.value ? values?.value : "")
+                            onValueChange={(
+                              _value: string | undefined,
+                              _name: string | undefined,
+                              values?: GiftCardCurrencyInputValues
+                            ) => {
+                              field.onChange(
+                                giftCardAmountFromCurrencyValues(values)
+                              )
                             }}
                           />
                         </Form.Control>
